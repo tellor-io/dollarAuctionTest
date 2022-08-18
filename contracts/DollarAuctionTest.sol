@@ -25,8 +25,7 @@ contract DollarAuctionTest is UsingTellor {
 
     // Events
     event NewBid(address _bidder, address _token, uint256 _amount);
-    event PoolFundedWithoutExtension(address _token, uint256 _amount);
-    event PoolFundedWithExtension(address _token, uint256 _amount, uint256 _newEndTimestamp);
+    event PoolFunded(address _token, uint256 _amount, uint256 _newEndTimestamp);
     event AuctionSettled(address _topBidder, uint256 _totalPoints);
     event PointsClaimed(address _user, uint256 _points);
     event WinnerRewardClaimed(address _user);
@@ -35,7 +34,8 @@ contract DollarAuctionTest is UsingTellor {
     constructor(
         address payable _tellor, 
         address[] memory _tokens, 
-        bytes32[] memory _queryIds) 
+        bytes32[] memory _queryIds,
+        uint256[] memory _prizePoolAmounts) 
         UsingTellor(_tellor) {
         require(_tokens.length == _queryIds.length, "Number of tokens and queryIds must match");
         for (uint256 i = 0; i < _tokens.length; i++) {
@@ -43,7 +43,12 @@ contract DollarAuctionTest is UsingTellor {
             token.isApproved = true;
             token.queryId = _queryIds[i];
             tokenAddresses.push(_tokens[i]);
+            if(_prizePoolAmounts[i] > 0) {
+                token.prizePoolAmount = _prizePoolAmounts[i];
+                require(IERC20(_tokens[i]).transferFrom(msg.sender, address(this), _prizePoolAmounts[i]));
+            }
         }
+        endTimestamp = block.timestamp + 1 weeks;
     }
 
     function bid(address _tokenAddress, uint256 _amount) public {
@@ -60,22 +65,18 @@ contract DollarAuctionTest is UsingTellor {
         emit NewBid(msg.sender, _tokenAddress, _amount);
     }
 
-    function fundPoolWithoutTimeExtension(address _tokenAddress, uint256 _amount) public {
-        if(endTimestamp == 0) {
-            endTimestamp = block.timestamp + 1 weeks;
-        }
-        _fundPool(_tokenAddress, _amount);
-        emit PoolFundedWithoutExtension(_tokenAddress, _amount);
-    }
-
     function fundPoolWithTimeExtension(address _tokenAddress, uint256 _amount) public {
+        require(block.timestamp < endTimestamp, "Auction has ended");
+        Token storage _token = tokens[_tokenAddress];
+        require(_token.isApproved, "Invalid token");
         uint256 _tokenPrice = _getTokenPrice(_tokenAddress);
         uint256 _prizePoolUsd = _getPrizePoolUsd();
         uint256 _percentageOfPrizePool = _amount * _tokenPrice / _prizePoolUsd;
         require(_percentageOfPrizePool >= 10e18, "Amount too low"); // 10% of the prize pool
         endTimestamp += 3 days;
-        _fundPool(_tokenAddress, _amount);
-        emit PoolFundedWithExtension(_tokenAddress, _amount, endTimestamp);
+        _token.prizePoolAmount += _amount;
+        require(IERC20(_tokenAddress).transferFrom(msg.sender, address(this), _amount), "Transfer failed");
+        emit PoolFunded(_tokenAddress, _amount, endTimestamp);
     }
 
     function settle() public {
@@ -123,14 +124,6 @@ contract DollarAuctionTest is UsingTellor {
         for (uint256 _i = 0; _i < _b.length; _i++) {
             _number = _number * 256 + uint8(_b[_i]);
         }
-    }
-
-    function _fundPool(address _tokenAddress, uint256 _amount) internal {
-        require(block.timestamp < endTimestamp, "Auction has ended");
-        Token storage _token = tokens[_tokenAddress];
-        require(_token.isApproved, "Invalid token");
-        _token.prizePoolAmount += _amount;
-        require(IERC20(_tokenAddress).transferFrom(msg.sender, address(this), _amount), "Transfer failed");
     }
 
     function _getTokenPrice(address _tokenAddress) internal view returns(uint256) {
