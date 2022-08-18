@@ -44,7 +44,6 @@ contract DollarAuctionTest is UsingTellor {
             token.queryId = _queryIds[i];
             tokenAddresses.push(_tokens[i]);
         }
-        endTimestamp = block.timestamp + 1 weeks;
     }
 
     function bid(address _tokenAddress, uint256 _amount) public {
@@ -62,6 +61,9 @@ contract DollarAuctionTest is UsingTellor {
     }
 
     function fundPoolWithoutTimeExtension(address _tokenAddress, uint256 _amount) public {
+        if(endTimestamp == 0) {
+            endTimestamp = block.timestamp + 1 weeks;
+        }
         _fundPool(_tokenAddress, _amount);
         emit PoolFundedWithoutExtension(_tokenAddress, _amount);
     }
