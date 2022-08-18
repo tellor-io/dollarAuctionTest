@@ -23,6 +23,15 @@ contract DollarAuctionTest is UsingTellor {
         bytes32 queryId;
     }
 
+    // Events
+    event NewBid(address _bidder, address _token, uint256 _amount);
+    event PoolFundedWithoutExtension(address _token, uint256 _amount);
+    event PoolFundedWithExtension(address _token, uint256 _amount, uint256 _newEndTimestamp);
+    event AuctionSettled(address _topBidder, uint256 _totalPoints);
+    event PointsClaimed(address _user, uint256 _points);
+    event WinnerRewardClaimed(address _user);
+    
+    // Functions
     constructor(
         address payable _tellor, 
         address[] memory _tokens, 
@@ -49,10 +58,12 @@ contract DollarAuctionTest is UsingTellor {
         totalPoints++;
         topBidUsd = _bidUsd;
         topBidder = msg.sender;
+        emit NewBid(msg.sender, _tokenAddress, _amount);
     }
 
     function fundPoolWithoutTimeExtension(address _tokenAddress, uint256 _amount) public {
         _fundPool(_tokenAddress, _amount);
+        emit PoolFundedWithoutExtension(_tokenAddress, _amount);
     }
 
     function fundPoolWithTimeExtension(address _tokenAddress, uint256 _amount) public {
@@ -62,6 +73,7 @@ contract DollarAuctionTest is UsingTellor {
         require(_percentageOfPrizePool >= 10e18, "Amount too low"); // 10% of the prize pool
         endTimestamp += 3 days;
         _fundPool(_tokenAddress, _amount);
+        emit PoolFundedWithExtension(_tokenAddress, _amount, endTimestamp);
     }
 
     function settle() public {
@@ -69,6 +81,7 @@ contract DollarAuctionTest is UsingTellor {
         require(!settled, "Auction already settled");
         totalPoints--;
         points[topBidder]--;
+        emit AuctionSettled(topBidder, totalPoints);
     }
 
     function claimPoints() public {
@@ -81,6 +94,7 @@ contract DollarAuctionTest is UsingTellor {
                 IERC20(tokenAddresses[_i]).transfer(msg.sender, _amount);
             }
         }
+        emit PointsClaimed(msg.sender, points[msg.sender]);
         points[msg.sender] = 0;
     }
 
@@ -94,6 +108,7 @@ contract DollarAuctionTest is UsingTellor {
                 _token.prizePoolAmount = 0;
             }
         }
+        emit WinnerRewardClaimed(msg.sender);
     }
 
     // Internal functions
