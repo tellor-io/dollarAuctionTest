@@ -35,26 +35,31 @@ contract DollarAuctionTest is UsingTellor {
     constructor(
         address payable _tellor, 
         address[] memory _tokens, 
-        bytes32[] memory _queryIds,
-        uint256[] memory _prizePoolAmounts) 
+        bytes32[] memory _queryIds
+        ) 
         UsingTellor(_tellor) {
         require(_tokens.length == _queryIds.length, "Number of tokens and queryIds must match");
-        require(_tokens.length == _prizePoolAmounts.length, "Number of tokens and pool prize amounts must match");
-
         for (uint256 i = 0; i < _tokens.length; i++) {
-            console.log("token balance at ",_tokens[i], " equals ", IERC20(_tokens[i]).balanceOf(msg.sender));
             Token storage token = tokens[_tokens[i]];
             token.isApproved = true;
             token.queryId = _queryIds[i];
             tokenAddresses.push(_tokens[i]);
+        }
+    }
+
+    function init(uint256[] memory _prizePoolAmounts) external {
+        require(tokenAddresses.length == _prizePoolAmounts.length, "Number of tokens and pool prize amounts must match");
+        for (uint256 i = 0; i < _prizePoolAmounts.length; i++) {
+            Token storage token = tokens[tokenAddresses[i]];
             if(_prizePoolAmounts[i] > 0) {
                 token.prizePoolAmount = _prizePoolAmounts[i];
-                require(IERC20(_tokens[i]).transferFrom(msg.sender, address(this), _prizePoolAmounts[i]));
+                console.log("before token transfer of ", i);
+                require(IERC20(tokenAddresses[i]).transferFrom(msg.sender, address(this), _prizePoolAmounts[i]));
+                console.log("transferred tokens from ", tokenAddresses[i]);
             }
         }
         endTimestamp = block.timestamp + 1 weeks;
     }
-
     function bid(address _tokenAddress, uint256 _amount) public {
         require(block.timestamp < endTimestamp, "Auction has ended");
         Token storage _token = tokens[_tokenAddress];

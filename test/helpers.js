@@ -1,5 +1,5 @@
 const web3 = require('web3');
-const { ethers } = require("hardhat");
+const { ethers, network } = require("hardhat");
 const BN = web3.utils.BN;
 
 const hash = web3.utils.keccak256;
@@ -88,9 +88,27 @@ advanceTime = async (time) =>{
   }
 
   async function impersonate(address) {
-    return await ethers.provider.getSigner(
+    return await ethers.getImpersonatedSigner(
         address
       )
+  }
+
+  async function fundMATIC(address) {
+    let bagHolder = await impersonate(
+        "0x9AC5637d295FEA4f51E086C329d791cC157B1C84"
+    )
+
+    let matic = await ethers.getContractAt(
+        "IERC20",
+        "0x0000000000000000000000000000000000001010"
+    )
+    
+    console.log("before transferring matic")
+    console.log("transferring to address" + address)
+    await matic.connect(bagHolder).transfer(address, BigInt(10E18))
+    console.log("after transferring matic")
+    console.log("matic balance is ", await matic.balanceOf(address))
+
   }
 
 module.exports = {
@@ -111,4 +129,5 @@ module.exports = {
   toWei,
   expectThrow,
   impersonate,
+  fundMATIC
 };
