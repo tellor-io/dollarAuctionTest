@@ -3,6 +3,7 @@ pragma solidity 0.8.4;
 
 import './interfaces/IERC20.sol';
 import 'usingtellor/contracts/UsingTellor.sol';
+import "hardhat/console.sol";
 
 contract DollarAuctionTest is UsingTellor {
     uint256 public topBidUsd; // should this adjust based on the current price?
@@ -38,7 +39,10 @@ contract DollarAuctionTest is UsingTellor {
         uint256[] memory _prizePoolAmounts) 
         UsingTellor(_tellor) {
         require(_tokens.length == _queryIds.length, "Number of tokens and queryIds must match");
+        require(_tokens.length == _prizePoolAmounts.length, "Number of tokens and pool prize amounts must match");
+
         for (uint256 i = 0; i < _tokens.length; i++) {
+            console.log("token balance at ",_tokens[i], " equals ", IERC20(_tokens[i]).balanceOf(msg.sender));
             Token storage token = tokens[_tokens[i]];
             token.isApproved = true;
             token.queryId = _queryIds[i];
@@ -128,6 +132,14 @@ contract DollarAuctionTest is UsingTellor {
 
     function _getTokenPrice(address _tokenAddress) internal view returns(uint256) {
         Token storage _token = tokens[_tokenAddress];
+
+        // return 1 for fiat-backed stablecoins
+        if (
+            _token.queryId == keccak256(abi.encode("SpotPrice", abi.encode("usdc", "usd"))) ||
+            _token.queryId == keccak256(abi.encode("SpotPrice", abi.encode("usdt", "usd")))
+        ) {
+            return 1;
+        }
         (, bytes memory _priceBytes, uint256 _timestampRetrieved) = getDataBefore(_token.queryId, block.timestamp - 2 hours);
         require(_timestampRetrieved > 0, "No data returned from oracle");
         return _bytesToUint(_priceBytes);
