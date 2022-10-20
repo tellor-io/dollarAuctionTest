@@ -7,9 +7,9 @@ module.exports = {
 
   networks: {
     hardhat: {
-      forking: {
-        url: process.env.FORK_URL
-      }
+      // forking: {
+      //   url: process.env.FORK_URL
+      // }
     }
   }
 };

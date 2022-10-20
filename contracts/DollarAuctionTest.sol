@@ -48,14 +48,13 @@ contract DollarAuctionTest is UsingTellor {
     }
 
     function init(uint256[] memory _prizePoolAmounts) external {
+        require(endTimestamp == 0, "Auction already initialized");
         require(tokenAddresses.length == _prizePoolAmounts.length, "Number of tokens and pool prize amounts must match");
         for (uint256 i = 0; i < _prizePoolAmounts.length; i++) {
             Token storage token = tokens[tokenAddresses[i]];
             if(_prizePoolAmounts[i] > 0) {
                 token.prizePoolAmount = _prizePoolAmounts[i];
-                console.log("before token transfer of ", i);
                 require(IERC20(tokenAddresses[i]).transferFrom(msg.sender, address(this), _prizePoolAmounts[i]));
-                console.log("transferred tokens from ", tokenAddresses[i]);
             }
         }
         endTimestamp = block.timestamp + 1 weeks;
@@ -71,29 +70,8 @@ contract DollarAuctionTest is UsingTellor {
         totalPoints++;
         topBidUsd = _bidUsd;
         topBidder = msg.sender;
+        require(IERC20(_tokenAddress).transferFrom(msg.sender, address(this), _amount));
         emit NewBid(msg.sender, _tokenAddress, _amount);
-    }
-
-    function fundPoolWithTimeExtension(address _tokenAddress, uint256 _amount) public {
-        require(block.timestamp < endTimestamp, "Auction has ended");
-        Token storage _token = tokens[_tokenAddress];
-        require(_token.isApproved, "Invalid token");
-        uint256 _tokenPrice = _getTokenPrice(_tokenAddress);
-        uint256 _prizePoolUsd = _getPrizePoolUsd();
-        uint256 _percentageOfPrizePool = _amount * _tokenPrice / _prizePoolUsd;
-        require(_percentageOfPrizePool >= 10e18, "Amount too low"); // 10% of the prize pool
-        endTimestamp += 3 days;
-        _token.prizePoolAmount += _amount;
-        require(IERC20(_tokenAddress).transferFrom(msg.sender, address(this), _amount), "Transfer failed");
-        emit PoolFunded(_tokenAddress, _amount, endTimestamp);
-    }
-
-    function settle() public {
-        require(block.timestamp > endTimestamp, "Auction not over");
-        require(!settled, "Auction already settled");
-        totalPoints--;
-        points[topBidder]--;
-        emit AuctionSettled(topBidder, totalPoints);
     }
 
     function claimPoints() public {
@@ -123,6 +101,42 @@ contract DollarAuctionTest is UsingTellor {
         emit WinnerRewardClaimed(msg.sender);
     }
 
+    function fundPoolWithTimeExtension(address _tokenAddress, uint256 _amount) public {
+        require(block.timestamp < endTimestamp, "Auction has ended");
+        Token storage _token = tokens[_tokenAddress];
+        require(_token.isApproved, "Invalid token");
+        uint256 _tokenPrice = _getTokenPrice(_tokenAddress);
+        uint256 _prizePoolUsd = _getPrizePoolUsd();
+        uint256 _percentageOfPrizePool = _amount * _tokenPrice / _prizePoolUsd;
+        require(_percentageOfPrizePool >= 1e17, "Amount too low"); // 10% of the prize pool
+        endTimestamp += 3 days;
+        _token.prizePoolAmount += _amount;
+        require(IERC20(_tokenAddress).transferFrom(msg.sender, address(this), _amount), "Transfer failed");
+        emit PoolFunded(_tokenAddress, _amount, endTimestamp);
+    }
+
+    function settle() public {
+        require(block.timestamp > endTimestamp, "Auction not over");
+        require(!settled, "Auction already settled");
+        totalPoints--;
+        points[topBidder]--;
+        settled = true;
+        emit AuctionSettled(topBidder, totalPoints);
+    }
+
+    // Getters
+    function getPointsByAddress(address _user) public view returns(uint256) {
+        return points[_user];
+    }
+
+    function getTokenAddresses() public view returns(address[] memory) {
+        return tokenAddresses;
+    }
+
+    function getTokenInfo(address _tokenAddress) public view returns(Token memory) {
+        return tokens[_tokenAddress];
+    }
+
     // Internal functions
     /**
      * @dev Internal function to read if a reward has been claimed
@@ -143,9 +157,9 @@ contract DollarAuctionTest is UsingTellor {
             _token.queryId == keccak256(abi.encode("SpotPrice", abi.encode("usdc", "usd"))) ||
             _token.queryId == keccak256(abi.encode("SpotPrice", abi.encode("usdt", "usd")))
         ) {
-            return 1;
+            return 1e18;
         }
-        (, bytes memory _priceBytes, uint256 _timestampRetrieved) = getDataBefore(_token.queryId, block.timestamp - 2 hours);
+        (bytes memory _priceBytes, uint256 _timestampRetrieved) = getDataBefore(_token.queryId, block.timestamp - 2 hours);
         require(_timestampRetrieved > 0, "No data returned from oracle");
         return _bytesToUint(_priceBytes);
     }
