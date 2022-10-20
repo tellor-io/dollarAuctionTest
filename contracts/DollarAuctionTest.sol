@@ -3,7 +3,6 @@ pragma solidity 0.8.4;
 
 import './interfaces/IERC20.sol';
 import 'usingtellor/contracts/UsingTellor.sol';
-import "hardhat/console.sol";
 
 contract DollarAuctionTest is UsingTellor {
     uint256 public topBidUsd; // should this adjust based on the current price?
