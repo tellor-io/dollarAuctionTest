@@ -17,6 +17,7 @@
     "hardhat": "^2.10.1"
   },
   "dependencies": {
-    "usingtellor": "^4.0.7"
+    "dotenv": "^16.0.2",
+    "usingtellor": "^5.0.1"
   }
 }
