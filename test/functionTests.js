@@ -2,7 +2,7 @@ const {expect, assert} = require("chai")
 const { ethers } = require("hardhat")
 const h = require("./helpers/helpers.js")
 
-describe("Dollar auction tests", function () {
+describe("Dollar auction - function tests", function () {
 
     let accounts
     let auction, tellor
