@@ -63,7 +63,7 @@ contract DollarAuctionTest is UsingTellor {
         Token storage _token = tokens[_tokenAddress];
         require(_token.isApproved, "Invalid token");
         uint256 _bidUsd = _getTokenPrice(_tokenAddress) * _amount / 1e18;
-        require(_bidUsd - 1e18 > topBidUsd, "Bid too low"); // 1 dollar minimum increment
+        require(_bidUsd - 1e18 >= topBidUsd, "Bid too low"); // 1 dollar minimum increment
         _token.totalBids += _amount;
         points[msg.sender]++;
         totalPoints++;
